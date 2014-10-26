@@ -22,10 +22,11 @@ def load_dataset():
         forbidden_chars =  ".!@#$%^&*()_+-=:;[]{\|}<>,.?/~``\t"
         table = string.maketrans(forbidden_chars, ' ' * len(forbidden_chars))
 
-
+        #Remove forbidden characters and then move to lower case
         text_line = text_line.translate(table).lower()
         text_tokens = text_line.split(' ')
 
+        #Remove any empty string words from the list
         text_tokens = filter(lambda t: t != '', text_tokens)
         for word in text_tokens:
             thedata_row.append(word)
