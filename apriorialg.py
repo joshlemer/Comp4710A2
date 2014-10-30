@@ -8,6 +8,67 @@ http://aimotion.blogspot.ca/2013/01/machine-learning-and-data-mining.html
 
 """
 
+frequent_words = [
+    "for",
+    "a",
+    "of",
+    "by",
+    "in",
+    "to",
+    "the",
+    "and",
+    "was",
+    "with",
+    "these",
+    "were",
+    "be",
+    "as",
+    "is",
+    "no",
+    "it",
+    "at",
+    "had",
+    "be",
+    "can",
+    "that",
+    "an",
+    "less",
+    "than",
+    "patients",
+    "patient",
+    "been",
+    "have",
+    "not",
+    "but",
+    "than",
+    "on",
+    "kg",
+    "this",
+    "we",
+    "induced",
+    "ng",
+    "ml",
+    "which",
+    "are",
+    "from",
+    "induced",
+    "after",
+    "all",
+    "",
+    "not",
+    "but",
+    "than",
+    "on",
+    "kg",
+    "this",
+    "or"
+]
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 def load_dataset():
     import arff
@@ -28,8 +89,10 @@ def load_dataset():
 
         #Remove any empty string words from the list
         text_tokens = filter(lambda t: t != '', text_tokens)
+
         for word in text_tokens:
-            thedata_row.append(word)
+            if word not in frequent_words and not is_number(word):
+                thedata_row.append(word)
         thedata.append(thedata_row)
 
     return thedata
@@ -98,7 +161,7 @@ def apriori(dataset, minsupport=0.5):
 
     return L, support_data
 
-def generateRules(L, support_data, min_confidence=0.7):
+def generateRules(L, support_data, min_confidence=0.5):
     """Create the association rules
     L: list of frequent item sets
     support_data: support data for those itemsets
@@ -108,7 +171,6 @@ def generateRules(L, support_data, min_confidence=0.7):
     for i in range(1, len(L)):
         for freqSet in L[i]:
             H1 = [frozenset([item]) for item in freqSet]
-            print "freqSet", freqSet, 'H1', H1
             if (i > 1):
                 rules_from_conseq(freqSet, H1, support_data, rules, min_confidence)
             else:
@@ -122,7 +184,6 @@ def calc_confidence(freqSet, H, support_data, rules, min_confidence=0.7):
     for conseq in H:
         conf = support_data[freqSet] / support_data[freqSet - conseq]
         if conf >= min_confidence:
-            print freqSet - conseq, '--->', conseq, 'conf:', conf
             rules.append((freqSet - conseq, conseq, conf))
             pruned_H.append(conseq)
     return pruned_H
@@ -137,7 +198,49 @@ def rules_from_conseq(freqSet, H, support_data, rules, min_confidence=0.7):
         if len(Hmp1) > 1:
             rules_from_conseq(freqSet, Hmp1, support_data, rules, min_confidence)
 
+def filter_by_lift(support_data, rules, minlift=25):
+    for rule in rules:
+        #print rule[2] / support_data[rule[1]]
+        if rule[2] / support_data[rule[1]] < minlift:
+            rules.remove(rule)
+    return rules
 
-############################################
+def filter_by_interest(support_data, rules, mininterest=50):
+    for rule in rules:
+        #print  support_data[rule[0] | rule[1]] / (support_data[rule[0]]*support_data[rule[0]])
+        if support_data[rule[0] | rule[1]] / (support_data[rule[0]]*support_data[rule[0]]) < mininterest:
+            rules.remove(rule)
+    return rules
 
+def filter_by_ps(support_data, rules, minps=10):
+    for rule in rules:
+        #print support_data[rule[0] | rule[1]] - (support_data[rule[0]]*support_data[rule[0]])
+        if support_data[rule[0] | rule[1]] - (support_data[rule[0]]*support_data[rule[0]]) < minps:
+            rules.remove(rule)
+    return rules
+
+def filter_by_phi(support_data, rules, minphi=10):
+    for rule in rules:
+        p_x = support_data[rule[0]]
+        p_y = support_data[rule[1]]
+        p_xy = support_data[rule[0] | rule[1]]
+        ps = p_xy - (p_x * p_y)
+        #print ps / ((p_x * (1-p_x) * p_y * (1-p_y))**0.5)
+        if ps / ((p_x * (1-p_x) * p_y * (1-p_y))**0.5) < minphi:
+            rules.remove(rule)
+    return rules
+
+def print_rules(rules):
+    print "Rule........................................." + "." * 39 + "|Confidence"
+    for rule in rules:
+        x_string = ""
+        y_string = ""
+        for word in rule[0]:
+            x_string += word+" "
+        for word in rule[1]:
+            y_string += word+" "
+        while len(x_string)<40: x_string += "-"
+        while len(y_string)<40: y_string += "."
+
+        print "%s--->%s|%f" % (x_string, y_string, rule[2])
 
